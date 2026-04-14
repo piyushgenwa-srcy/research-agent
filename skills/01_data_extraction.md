@@ -2,8 +2,9 @@
 
 ## Classification
 **Type:** Skill (LLM-guided research ops)
-**Called:** 3-4 times in parallel, once per lane, before trend discovery
+**Use this skill when:** The agent needs a source-grounded evidence pack for a specific lane
 **Lanes:** `tiktok` | `instagram` | `amazon` | `xiaohongshu`
+**Creates or refines artifact:** `lane_evidence_pack`
 
 ---
 
@@ -19,6 +20,7 @@ This skill creates the normalized evidence pack that downstream reasoning skills
 | Input | Source | Notes |
 |---|---|---|
 | `client_profile` | Skill 00 | Defines search scope, categories, markets, and trend definition |
+| `market_assortment_context` | Skill 00a / embedded in client_profile.market_context | Optional current-shelf context from retailer pages |
 | `lane` | Orchestrator | tiktok \| instagram \| amazon \| xiaohongshu |
 | `raw_connector_output` | Apify / Oxylab / manual source fetch | Source-native payload for this lane |
 
@@ -44,6 +46,8 @@ Use `client_profile` to define what evidence matters for this lane:
 - which markets the client cares about
 - whether the lane is primary or secondary for this client
 - what kinds of product signals qualify for collection
+- which whitespace hypotheses deserve extra recall because current retailer coverage looks thin
+- which observed formats are already crowded and should only survive if the signal is genuinely differentiated
 
 Write a short internal search objective before extracting:
 "Collect evidence of product signals in [lane] relevant to [client categories / buyer profile / trend definition]. Preserve operational items separately if the client is Rappi-like."
@@ -165,16 +169,15 @@ Output a normalized structure that downstream trend discovery can reason over wi
 - **Reposts are still evidence, but not independent proof.** Keep them, mark them.
 - **Minimum evidence bar for inclusion in candidates:** 2+ evidence items is preferred. A single item can remain only if it is unusually strong or strategically relevant; flag it as thin evidence.
 - **Off-category noise should be logged, not silently dropped.** Add it to `excluded_items` with a reason if it appeared in-source but does not fit the client scope.
+- **Market-context guidance affects priority, not visibility.** If current assortment suggests a format is crowded, still capture strong evidence and let later skills decide whether differentiation is enough.
 
 ---
 
-## Output Handoff
+## Orchestration Notes
 
-This skill hands its output to `02_trend_discovery.md`.
+The harness may invoke this skill multiple times across lanes, categories, or markets. It may also revisit extraction when:
+- evidence is too thin
+- naming ambiguity remains too high
+- later synthesis reveals missing support for a promising signal
 
-Trend Discovery uses this evidence pack to decide:
-- whether a candidate matches the client's trend definition
-- whether the signal looks `OPEN`, `CLOSING`, or `CLOSED`
-- whether the signal strength is HIGH, MEDIUM, or LOW
-
-The extraction skill should make that later judgment easy, but never do it itself.
+This skill should make later reasoning easier, but never perform the later reasoning itself.

@@ -2,8 +2,9 @@
 
 ## Classification
 **Type:** Skill (LLM reasoning with calibrated thresholds)
-**Called:** Once per candidate product
+**Use this skill when:** The agent needs to turn mixed evidence into an auditable decision tier
 **Calibrated against:** NocNoc research run, April 2026 (25+ products)
+**Creates or refines artifact:** `tiered_recommendations`
 
 ---
 
@@ -19,6 +20,7 @@ Combine trend score, marketplace saturation, social signal strength, and gross m
 | `trend_score` | SerpAPI → Google Trends, 5yr weekly avg | geo = client target markets |
 | `ml_listing_count` | Oxylab → listado.mercadolibre.com.mx/{slug} | Parse "total" from embedded JSON |
 | `social_signal_strength` | Skill 02 output | HIGH / MEDIUM / LOW from trend discovery |
+| `assortment_fit` | Skill 03 output | positive / neutral / negative based on observed retailer coverage |
 | `sourcing_price` | TMAPI → AliExpress / CJDropshipping | USD per unit, MOQ=1; flagged if proxy |
 | `retail_price_comp` | Oxylab → ML MX comps | Estimated retail in target market |
 | `client_profile` | Skill 00 | Adjusts thresholds for Rappi ops items |
@@ -59,6 +61,7 @@ Gross margin = (retail_price_comp − sourcing_price) / retail_price_comp
 - Trend score ≥ 20 AND social_signal = HIGH
 - AND ml_listing_count < 600
 - AND gross margin > 55%
+- AND assortment_fit is not negative
 - Confidence: HIGH
 
 **Tier 2 — Good opportunity**
@@ -71,6 +74,7 @@ Gross margin = (retail_price_comp − sourcing_price) / retail_price_comp
 - Trend score 10–19 OR social_signal = LOW
 - OR seasonal signal only (spike in specific months, low otherwise)
 - OR platform-specific fit caveat (e.g., works for Meli but not Rappi due to delivery constraints)
+- OR assortment_fit = negative because the target platform already shows heavy observed coverage
 - Confidence: LOW
 - Must include condition note (e.g., "Q4 only", "Meli only — not Rappi-deliverable")
 
@@ -103,6 +107,11 @@ If a product has **OPEN trend + HIGH social signal** but **ml_listing_count > 1,
 - Flag as `conflict: true` with note: "Strong demand signal but high saturation — assess if differentiation (private label, unique format) can break in"
 - Escalate to PM with both data points visible
 
+If a product has **strong trend signal** but **assortment_fit = negative** from retailer coverage:
+- Do NOT auto-skip
+- Flag as `conflict: true` with note: "Strong external signal but current target-platform assortment already looks crowded — confirm if differentiation is real"
+- Demote one tier unless the differentiation angle is explicit
+
 ---
 
 ## Output
@@ -124,7 +133,8 @@ If a product has **OPEN trend + HIGH social signal** but **ml_listing_count > 1,
     "sourcing_price_method": "TMAPI | proxy",
     "retail_price_comp_usd": 18.00,
     "gross_margin_pct": 75
-  }
+  },
+  "assortment_fit": "positive | neutral | negative"
 }
 ```
 

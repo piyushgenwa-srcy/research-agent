@@ -8,6 +8,7 @@ Reference doc for the orchestrator and for Dan's eng integration. Maps every dat
 
 | Data Source | Tool / Connector | Feeds Skill | Field Populated | Client | Status |
 |---|---|---|---|---|---|
+| Rappi retailer/category pages | Manual URL list / scraper | 00a Market Assortment Intake | `market_assortment_context` (coverage, gaps, retailer archetypes) | Rappi / NocNoc | New — define fetch contract |
 | TikTok posts + engagement | Apify TikTok connector | 01 Data Extraction (lane: tiktok) | raw_connector_output -> normalized evidence pack | Both | Ivan has connector — share with Dan + Piyush |
 | Instagram posts + engagement | Apify Instagram connector | 01 Data Extraction (lane: instagram) | raw_connector_output -> normalized evidence pack | Both | Ivan has connector — share with Dan + Piyush |
 | Xiaohongshu (RED) posts + saves | Apify RED connector | 01 Data Extraction (lane: xiaohongshu) | raw_connector_output -> normalized evidence pack | Meli only | Connector status unknown — confirm with Ivan |
@@ -41,6 +42,7 @@ For trend signals, apply in this order when sources conflict:
 
 | Gap | Impact | Resolution Path |
 |---|---|---|
+| No normalized retailer assortment scraper for Rappi pages | Cannot reliably convert category/store URLs into structured whitespace signals at scale | Define fetch contract for 00a and store raw page exports alongside normalized output |
 | No granular LatAM ecommerce sales data (SKU/shop/category/last X days) | Cannot validate actual sales velocity — agent identifies opportunity signals only, not proven sellers | Nubimetrics subscription — not yet active |
 | TMAPI zero balance | Sourcing prices fall back to proxy (Amazon × 0.30) — lower confidence margins | Top up TMAPI balance |
 | Jungle Scout API key name missing | Amazon keyword volume unavailable | Find key name in JS account Settings → API |

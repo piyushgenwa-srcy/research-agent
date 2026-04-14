@@ -2,8 +2,10 @@
 
 ## Classification
 **Type:** Skill (LLM reasoning)
-**Called:** Once per trend item (Meli only)
-**Skip when:** `client_profile.use_case = sourcing` OR `platform = rappi` — skip for any client that is sourcing existing products rather than designing new ones. Sentiment analysis only adds value when the client can act on product design feedback (private label, white label). NocNoc = skip. Rappi = skip. Meli = run.
+**Use this skill when:** The agent needs consumer complaints, likes, and wishlists to shape product differentiation
+**Creates or refines artifact:** `sentiment_opportunities`
+
+Usually not useful for pure sourcing clients such as Rappi or NocNoc. Most useful when product-design decisions are still in play.
 
 ---
 
@@ -17,7 +19,7 @@ Extract what buyers like and complain about from social posts and reviews for a 
 | Input | Source | Notes |
 |---|---|---|
 | `raw_comments` | Apify TikTok/IG comments + Amazon reviews | Comments and reviews for posts/products matching this trend |
-| `trend_item` | Skill 03 output | The trend being analyzed |
+| `trend_item` | Working artifact | The opportunity being analyzed |
 | `client_profile` | Skill 00 | Must be `platform = mercadolibre` |
 
 ---

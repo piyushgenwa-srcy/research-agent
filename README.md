@@ -1,6 +1,6 @@
 # Research Agent
 
-Structured skill definitions for a product-trend research workflow focused on LatAm ecommerce clients such as Rappi, MercadoLibre, and cross-border sourcing operators.
+Structured skill definitions for an agentic product-trend research system focused on LatAm ecommerce clients such as Rappi, MercadoLibre, and cross-border sourcing operators.
 
 This repo is currently a workflow spec and operating model, not an application codebase. The primary assets are the markdown skill docs in [skills](./skills), plus a few working research artifacts and sample outputs in the repo root.
 
@@ -10,40 +10,41 @@ The workflow is designed to answer a specific business question:
 
 "Which products are emerging in US / China signals, still underpenetrated in LatAm, commercially viable to source or private-label, and worth packaging into a client-facing recommendation?"
 
-The repo separates that work into explicit reasoning stages so the process is auditable and can later be operationalized in an orchestrator.
+The repo separates that work into explicit reasoning capabilities so the process is auditable and can later be operationalized in an agentic harness.
 
-## Workflow
+## Architecture
 
-The current pipeline is:
+This repo should be read in two layers:
 
-1. `00_client_profile`  
-   Parse a freeform client brief into a structured `client_profile`.
+1. **Skills**  
+   Reusable guidance modules the agent can apply when it needs help solving a specific subproblem, such as profiling a client, extracting lane evidence, or classifying demand.
 
-2. `01_data_extraction`  
-   Gather lane-specific evidence packs from source data without making trend judgments.
+2. **Orchestration / harness**  
+   The layer that decides which skills to use, in what order, with which tools, validators, and retry logic.
 
-3. `02_trend_discovery`  
-   Evaluate each lane independently and identify candidate trend signals.
+The skills are not intended to be read as a rigid mandatory pipeline. A common run may touch several of them in a familiar order, but the agent is allowed to skip, revisit, or combine skills based on the task.
 
-4. `03_trend_synthesis`  
-   Merge lane outputs, score them, and apply the time-machine filter.
+## Reference Run
 
-5. `04_sku_mapping`  
-   Convert shortlisted trends into sourceable SKU definitions.
+A common happy-path run often looks like:
 
-6. `05_sentiment_analysis`  
-   Extract buyer complaints, likes, and wishlist signals for product opportunity design.
+1. `00a_market_assortment_intake` when retailer/category URLs are supplied
+2. `00_client_profile` to form the research frame
+3. `01_data_extraction` and `02_trend_discovery` across one or more lanes
+4. `03_trend_synthesis` to unify and rank opportunities
+5. optional `04_sku_mapping` and `05_sentiment_analysis`
+6. `06_demand_tier_classification`
+7. `07_catalog_assembly`
 
-7. `06_demand_tier_classification`  
-   Combine trend strength, saturation, and margin into Tier 1 / 2 / 3 / Skip.
-
-8. `07_catalog_assembly`  
-   Package final outputs as client-facing catalogs or dashboard-ready payloads.
+That is a reference pattern, not an execution contract.
 
 ## Skills Directory
 
 The core docs live here:
 
+- [architecture.md](./architecture.md)
+- [orchestration.md](./orchestration.md)
+- [skills/00a_market_assortment_intake.md](./skills/00a_market_assortment_intake.md)
 - [skills/00_client_profile.md](./skills/00_client_profile.md)
 - [skills/01_data_extraction.md](./skills/01_data_extraction.md)
 - [skills/02_trend_discovery.md](./skills/02_trend_discovery.md)
@@ -54,13 +55,15 @@ The core docs live here:
 - [skills/07_catalog_assembly.md](./skills/07_catalog_assembly.md)
 - [skills/data_mapping.md](./skills/data_mapping.md)
 
+`architecture.md` shows the agent / harness / artifact model. `orchestration.md` is the harness-level doc. The files in `skills/` are capability guides, not pipeline nodes.
+
 ## Design Principles
 
 - Separate extraction from judgment. Data collection should behave like an analyst; trend classification should behave like a strategist.
-- Keep every stage auditable. Each skill should pass explicit structured output to the next stage.
+- Keep every artifact auditable. The agent should create explicit intermediate objects that can be inspected and validated.
 - Preserve ambiguity early. Resolve conflicts only when the workflow reaches the right reasoning stage.
 - Treat connector data, marketplace saturation, and margin as different signal types. They should not be conflated.
-- Optimize for operationalization. These docs are intended to become orchestrator prompts, schemas, and tool contracts.
+- Optimize for operationalization. These docs are intended to become harness prompts, validators, schemas, and tool contracts.
 
 ## Source Lanes
 
@@ -84,7 +87,7 @@ See [skills/data_mapping.md](./skills/data_mapping.md) for the full source-to-sk
 The workflow branches depending on the client:
 
 - `Rappi` / quick-commerce sourcing  
-  Emphasis on fast-deliverable, impulse, operational, and sourcing-feasible products.
+  Emphasis on fast-deliverable, impulse, operational, and sourcing-feasible products. When retailer URLs are supplied, start with `00a_market_assortment_intake` to ground recommendations in current shelf coverage.
 
 - `MercadoLibre` / private-label or white-label  
   Emphasis on trend translatability, assortment logic, sentiment-driven product opportunity, and dashboard output.
@@ -108,7 +111,7 @@ These are useful as examples, but the markdown files in `skills/` are the canoni
 If this is being shared with engineering or operations, the most useful follow-on docs would be:
 
 1. a strict JSON schema for each skill output
-2. an orchestrator spec showing execution order, branching, and retries
+2. a harness spec showing routing, branching, and retries
 3. a connector contract doc for Apify, Oxylab, SerpAPI, TMAPI, and related sources
 
 ## Status

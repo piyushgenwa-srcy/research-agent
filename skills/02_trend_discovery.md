@@ -2,8 +2,9 @@
 
 ## Classification
 **Type:** Skill (LLM reasoning)
-**Called:** 3-4 times in parallel, once per lane, after extraction
+**Use this skill when:** The agent needs to interpret one lane's evidence pack into lane-local trend signals
 **Lanes:** `tiktok` | `instagram` | `amazon` | `xiaohongshu`
+**Creates or refines artifact:** `lane_signal_output`
 
 ---
 
@@ -17,7 +18,7 @@ Given the normalized evidence pack from one source, identify product signals tha
 | Input | Source | Notes |
 |---|---|---|
 | `lane_evidence_pack` | Skill 01 | Normalized lane evidence produced by the extraction skill |
-| `lane` | Orchestrator | tiktok \| instagram \| amazon \| xiaohongshu |
+| `lane` | Harness context | tiktok \| instagram \| amazon \| xiaohongshu |
 | `client_profile` | Skill 00 | See `00_client_profile.md` |
 
 ---
@@ -85,3 +86,7 @@ For each qualifying signal:
 | `instagram` | Apify Instagram connector | Search by hashtag → posts from last 90 days |
 | `amazon` | Oxylab amazon.com/s?k=KEYWORD | Top 50 organic results — title, rank, review count, date first available |
 | `xiaohongshu` | Apify RED connector | Search by keyword → posts sorted by saves (Meli only) |
+
+## Orchestration Notes
+
+The harness may use this skill on some lanes and not others, depending on client fit, connector availability, and evidence quality. Lane outputs are intentionally local; cross-lane merging belongs elsewhere.

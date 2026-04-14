@@ -2,14 +2,14 @@
 
 ## Classification
 **Type:** Skill (LLM reasoning)
-**Called:** Once, at the start of every research run
-**Input:** Raw client brief — any format (message, email, notes, bullet points)
-**Output:** Structured `client_profile` JSON passed to all downstream skills
+**Use this skill when:** The agent needs a structured research frame from a messy client brief
+**Input:** Raw client brief — any format (message, email, notes, bullet points), plus optional `market_assortment_context`
+**Creates or refines artifact:** `client_profile`
 
 ---
 
 ## Role
-Transform an unstructured client description into the standardized `client_profile` object the rest of the pipeline depends on. The PM does not fill a form — they write naturally and this skill extracts structure from it. If required fields cannot be inferred, ask before proceeding.
+Transform an unstructured client description into the standardized `client_profile` object the rest of the system depends on. The PM does not fill a form — they write naturally and this skill extracts structure from it. If required fields cannot be inferred, ask before proceeding.
 
 ---
 
@@ -18,6 +18,7 @@ Transform an unstructured client description into the standardized `client_profi
 | Input | Source | Format |
 |---|---|---|
 | `raw_brief` | PM | Any — Slack message, email, bullet notes, free text |
+| `market_assortment_context` | Skill 00a | Optional structured context from retailer/category pages |
 
 ---
 
@@ -32,6 +33,12 @@ From the raw brief, extract every field you can infer with confidence. Use conte
 - Words like "private label", "white label", "sourcing", "catalog" → `use_case` + `output_mode`
 - MOQ mentioned or implied → `moq`
 - Any mention of trend sources (TikTok, Xiaohongshu, 美团, Taobao) → `benchmark_sources`
+
+If `market_assortment_context` is present, also extract:
+- retailer set being benchmarked
+- categories with strong observed coverage
+- undercovered formats or subcategories
+- retailer archetypes that define the client's real competitive set
 
 ### Step 2 — Infer where reasonable
 Some fields can be inferred from platform context even if not stated:
@@ -49,6 +56,8 @@ This field cannot be defaulted — it must be specific to the client. Compose a 
 - What sources are they watching (social, Chinese platforms, US market)?
 - Are there any product types that are explicitly in or out?
 
+If `market_assortment_context` exists, incorporate it directly so the profile reflects both external trend ambition and current in-market shelf reality.
+
 ### Step 4 — Identify missing required fields
 Required fields: `platform`, `markets`, `categories`, `price_bracket`, `output_mode`, `use_case`
 
@@ -58,26 +67,17 @@ If any required field cannot be confidently inferred:
 - Ask the PM before generating the profile
 - Format: "I can infer most of the profile, but need clarification on: [field] — [why it matters]"
 
-### Step 5 — Determine which skills to run
+### Step 5 — Suggest capability routing hints
 
-Set `run_skills` based on the client's `use_case` and `output_mode`. This controls which steps the orchestrator executes.
+This skill may propose routing hints for the harness, but it does not control execution order.
 
-| Skill | Always runs? | Skip when |
-|---|---|---|
-| 01 Data Extraction | Yes | Never |
-| 02 Trend Discovery | Yes | Never |
-| 03 Trend Synthesis | Yes | Never |
-| 04 SKU Mapping | No | `use_case = sourcing` — client wants to source existing products, not define private/white label specs |
-| 05 Sentiment Analysis | No | `use_case = sourcing` OR `platform = rappi` — only relevant when client needs product design input |
-| 06 Demand Tier Classification | Yes | Never |
-| 07 Catalog Assembly | Yes | Never |
+Express those hints in terms of what is likely useful next:
+- which lanes appear relevant
+- whether assortment context should be incorporated
+- whether concrete SKU mapping will likely be needed
+- whether sentiment work is likely relevant
 
-**Examples:**
-- NocNoc (cross-border sourcing) → `run_skills: ["01", "02", "03", "06", "07"]`
-- Rappi (quick commerce sourcing) → `run_skills: ["01", "02", "03", "04", "06", "07"]` — SKU mapping included because Rappi needs the generic format defined for sourcing; sentiment skipped
-- Meli (private label + dashboard) → `run_skills: ["01", "02", "03", "04", "05", "06", "07"]` — all skills
-
-**Rule:** When in doubt, include a skill. Skipping is an optimization, not a default.
+The harness remains responsible for deciding actual skill/tool usage.
 
 ### Step 6 — Output the structured profile
 
@@ -96,12 +96,23 @@ Set `run_skills` based on the client's `use_case` and `output_mode`. This contro
   "price_bracket": "budget | mid-market | premium",
   "output_mode": "catalog | dashboard",
   "benchmark_sources": ["TikTok US", "Xiaohongshu", "美团闪购"],
+  "market_context": {
+    "benchmark_retailers": ["string"],
+    "observed_coverage_notes": ["string"],
+    "gap_priority_areas": ["string"],
+    "deprioritized_areas": ["string"]
+  },
   "use_case": "sourcing | private_label | white_label",
   "moq": 50,
   "min_products": 5,
   "max_products": 10,
   "ship_to": "string",
-  "run_skills": ["01", "02", "03", "04", "05", "06", "07"]
+  "capability_hints": {
+    "prioritize_lanes": ["tiktok", "amazon"],
+    "use_market_assortment_context": true,
+    "needs_sku_mapping": true,
+    "needs_sentiment_analysis": false
+  }
 }
 ```
 
@@ -138,28 +149,34 @@ After the JSON, include a short **Inference Notes** section listing:
   "min_products": 5,
   "max_products": 10,
   "ship_to": "Mexico City",
-  "run_skills": ["01", "02", "03", "04", "06", "07"]
+  "capability_hints": {
+    "prioritize_lanes": ["tiktok", "amazon"],
+    "use_market_assortment_context": false,
+    "needs_sku_mapping": true,
+    "needs_sentiment_analysis": false
+  }
 }
 ```
 
 **Inference Notes:**
 - `platform`, `categories`, `moq`, `ship_to`, `benchmark_sources`: explicitly stated
 - `trend_definition`: composed from benchmark sources + "no specific item" + categories listed
+- `market_context`: optional enrichment from retailer assortment intake when supplied
 - `output_mode = catalog`: inferred from "recommendation" + "3 catalogs" context
 - `price_bracket = mid-market`: inferred from "high margin" + "generic non-brand" + ~50pcs MOQ
 - `motivation = impulse`, `delivery_expectation = minutes`: Rappi platform defaults, not contradicted
 - `min_products = 5`, `max_products = 10`: default — not specified in brief
-- `run_skills`: 05 (Sentiment Analysis) skipped — `use_case = sourcing`, no product design decisions needed
+- `capability_hints.needs_sentiment_analysis = false`: inferred from `use_case = sourcing`, no product design decisions needed
 
 ---
 
 ## Guardrails
 
-- **Never guess a required field.** If `markets` is not stated and cannot be inferred, ask. A wrong market routes the entire pipeline incorrectly.
+- **Never guess a required field.** If `markets` is not stated and cannot be inferred, ask. A wrong market misroutes the whole research run.
 - **trend_definition must be specific.** Generic definitions like "products that are popular" are not acceptable. If the brief doesn't give enough to write a specific definition, ask.
 - **New platform (not Rappi or Meli):** If the client is neither, still produce the full profile using whatever the brief provides. Do not refuse — just skip the default-inference step and derive everything from the text.
 - **Contradictions in the brief:** If the raw brief contains conflicting signals (e.g., "budget products" but also "premium private label"), flag the contradiction and ask before resolving it.
-- **Output JSON must be valid.** All downstream skills parse this object directly.
+- **Output JSON must be valid.** The harness and downstream reasoning artifacts rely on this object directly.
 
 ---
 
@@ -168,6 +185,7 @@ After the JSON, include a short **Inference Notes** section listing:
 | Field | Used by skill(s) |
 |---|---|
 | `trend_definition` | 01 Data Extraction, 02 Trend Discovery, 03 Trend Synthesis |
+| `market_context` | 01 Data Extraction, 03 Trend Synthesis, 06 Demand Tier Classification |
 | `buyer_profile.motivation` | 03 Trend Synthesis (client filter), 07 Catalog Assembly |
 | `benchmark_sources` | 01 Data Extraction (lane priority / benchmark scope) |
 | `markets` | 01 Data Extraction, 06 Demand Tier (SerpAPI geo) |

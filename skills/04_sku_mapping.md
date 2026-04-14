@@ -2,8 +2,10 @@
 
 ## Classification
 **Type:** Skill (LLM reasoning)
-**Called:** Once per trend item from skill 03 output
-**Skip when:** `client_profile.use_case = sourcing` AND the client is not defining private/white label SKUs — e.g. NocNoc (cross-border reseller sourcing existing products). For pure sourcing clients, trend → product identification is sufficient; no need to spec variants or differentiation angles.
+**Use this skill when:** The agent needs to convert a promising opportunity into concrete sourceable product formats or variants
+**Creates or refines artifact:** `sku_definitions`
+
+Use more selectively for pure sourcing clients where category-level opportunity is enough and concrete SKU specification would add little value.
 
 ---
 
@@ -16,7 +18,7 @@ Translate a trend signal into 2–3 specific, sourceable SKU definitions. This i
 
 | Input | Source | Notes |
 |---|---|---|
-| `trend_item` | Skill 03 output | Single trend with lane evidence and score |
+| `trend_item` | Working artifact | Single opportunity with lane evidence and score |
 | `client_profile` | Skill 00 | See `00_client_profile.md` |
 
 ---

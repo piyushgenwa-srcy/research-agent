@@ -2,13 +2,14 @@
 
 ## Classification
 **Type:** Skill (LLM reasoning)
-**Called:** Once, after all products are tiered
-**Branches by:** `client_profile.output_mode`
+**Use this skill when:** The agent needs to package vetted recommendations into a client-facing deliverable
+**Creates or refines artifact:** final output package
+**Primary branch variable:** `client_profile.output_mode`
 
 ---
 
 ## Role
-Group tiered products into coherent catalogs or dashboard-ready output. The format, structure, and grouping logic differs by client. This is the final assembly step — inputs are fully validated, tiered, and enriched. Do not re-classify or re-score products here.
+Group tiered products into coherent catalogs or dashboard-ready output. The format, structure, and grouping logic differs by client. This skill is packaging and presentation, not re-ranking.
 
 ---
 
@@ -20,6 +21,7 @@ Group tiered products into coherent catalogs or dashboard-ready output. The form
 | `sku_definitions` | Skill 04 output (all products) | With SKU specs and sourcing details |
 | `sentiment_data` | Skill 05 output (Meli only) | Likes, complaints, product opportunities |
 | `client_profile` | Skill 00 | Determines output mode and catalog structure |
+| `market_assortment_context` | Skill 00a / embedded in client_profile.market_context | Optional rationale for why a product fills a real shelf gap |
 
 ---
 
@@ -43,6 +45,7 @@ Each catalog entry includes:
 - MOQ
 - Shipping note (Mexico City)
 - Last-mile fit flag (Rappi-deliverable: yes/no + note if no)
+- Assortment-gap note (what this fills or why it still wins despite crowding)
 - Source (AliExpress / CJDropshipping / Factory)
 
 ### Sorting
@@ -116,6 +119,7 @@ In addition to Notion summary, generate structured JSON per product card for das
 - **Minimum catalog size.** If any catalog has fewer than `client_profile.min_products` products, flag it. Do not pad with Skip-tier products to hit the number.
 - **Proxy pricing must be visible.** Any product where `sourcing_price_method = proxy` gets a footnote: "Sourcing price estimated — verify before ordering."
 - **Do not rewrite the tier.** Catalog assembly is grouping and formatting only. Do not upgrade or downgrade tiers here.
+- **Gap logic should remain visible.** If assortment context was used upstream, carry the concise gap rationale into the final output so PM can see why the product is being recommended.
 
 ---
 

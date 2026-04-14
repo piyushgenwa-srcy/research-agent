@@ -2,12 +2,13 @@
 
 ## Classification
 **Type:** Skill (LLM reasoning)
-**Called:** Once, after all Trend Discovery lanes complete
+**Use this skill when:** The agent needs a unified cross-lane view of candidate opportunities
+**Creates or refines artifact:** `trend_candidates`
 
 ---
 
 ## Role
-Combine signals from all lanes into a unified, ranked trend list. Apply the time machine filter (US/China → LatAM). Apply client-specific fit filter. Output the top N trends to pass to SKU Mapping.
+Combine signals from multiple lanes into a unified, ranked trend list. Apply the time machine filter (US/China → LatAM). Apply client-specific fit filter. Produce a ranked opportunity view the harness can use for tiering, SKU concretization, or further evidence gathering.
 
 ---
 
@@ -17,6 +18,7 @@ Combine signals from all lanes into a unified, ranked trend list. Apply the time
 |---|---|---|
 | `lane_outputs` | Skill 02 (all lanes) | Array of signal lists, one per lane |
 | `client_profile` | Skill 00 | See `00_client_profile.md` |
+| `market_assortment_context` | Skill 00a / embedded in client_profile.market_context | Optional competitor coverage and whitespace context |
 
 ---
 
@@ -59,11 +61,20 @@ Apply `client_profile` to filter out trends that don't match this client's conte
 - Keep: items that map to `client_profile.categories` (dresses, athleisure, etc.)
 - Drop: pure operational/utility items, fast food, delivery supplies
 
-### Step 5 — Rank and trim
-Sort surviving trends by: `final_score = combined_score × time_machine_multiplier`
+### Step 5 - Assortment-whitespace adjustment
+If `market_assortment_context` exists, evaluate each signal against observed retailer coverage:
+- promote products that match a documented `coverage_gap`, `depth_gap`, `format_gap`, or `retailer_gap`
+- penalize products that map to an already over-covered observed format unless the signal includes a clear novelty angle
+- for Rappi or NocNoc sourcing, prefer products that improve category breadth rather than adding another commodity SKU to a crowded shelf
+
+Add a short note:
+- `assortment_fit_note`: why this signal helps fill a real shelf gap, or why it risks duplicating existing coverage
+
+### Step 6 — Rank and trim
+Sort surviving trends by: `final_score = combined_score × time_machine_multiplier`, then use assortment fit as a tie-breaker when scores are close.
 Output top `client_profile.max_products` trends. Flag if fewer than `client_profile.min_products` survive all filters.
 
-### Step 6 — Output per trend
+### Step 7 — Output per trend
 
 ```json
 {
@@ -73,6 +84,8 @@ Output top `client_profile.max_products` trends. Flag if fewer than `client_prof
   "time_machine": true,
   "time_machine_lag_estimate": "6–12 months",
   "final_score": 0.0,
+  "assortment_fit": "positive | neutral | negative",
+  "assortment_fit_note": "why this fills a real gap or duplicates existing coverage",
   "lane_evidence": {
     "tiktok": { "strength": "HIGH", "summary": "..." },
     "instagram": { "strength": "MEDIUM", "summary": "..." },
@@ -91,3 +104,4 @@ Output top `client_profile.max_products` trends. Flag if fewer than `client_prof
 - **Do not drop below min_products without flagging.** If fewer than `min_products` survive, flag the shortfall and explain which filter caused the most drop-off.
 - **Instagram reposts from TikTok do not add score.** If tagged `repost_of_tiktok: true` in Skill 02 output, do not add Instagram lane weight for that signal — it is the same underlying signal.
 - **Time machine flag is a signal multiplier, not a trump card.** A CLOSING trend with time_machine=true still ranks lower than an OPEN trend without it.
+- **Do not hallucinate gaps.** Use assortment context only when retailer evidence actually supports a coverage view.
