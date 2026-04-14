@@ -51,14 +51,22 @@ flowchart TB
     A <--> T5
 
     subgraph W["Working Artifacts"]
-        W1["market_assortment_context"]
-        W2["client_profile"]
-        W3["lane_evidence_pack"]
-        W4["lane_signal_output"]
-        W5["trend_candidates"]
-        W6["sku_definitions"]
-        W7["sentiment_opportunities"]
-        W8["tiered_recommendations"]
+        W1["market_assortment_context
+        retailer coverage, gaps, whitespace hypotheses"]
+        W2["client_profile
+        structured client frame, constraints, routing hints"]
+        W3["lane_evidence_pack
+        normalized raw evidence for one lane"]
+        W4["lane_signal_output
+        lane-local trend interpretations"]
+        W5["trend_candidates
+        cross-lane ranked opportunity set"]
+        W6["sku_definitions
+        sourceable product formats and variants"]
+        W7["sentiment_opportunities
+        complaints, likes, wishlist-driven improvements"]
+        W8["tiered_recommendations
+        auditable 1 / 2 / 3 / Skip decisions"]
     end
 
     A <--> W1
@@ -80,21 +88,29 @@ This second diagram shows common artifact relationships without implying mandato
 
 ```mermaid
 flowchart LR
-    A["PM brief"] --> B["client_profile"]
-    C["Retailer URLs / category pages"] --> D["market_assortment_context"]
+    A["PM brief"] --> B["client_profile
+    structured research frame"]
+    C["Retailer URLs / category pages"] --> D["market_assortment_context
+    current shelf coverage"]
     D --> B
 
-    B --> E["lane_evidence_pack"]
+    B --> E["lane_evidence_pack
+    lane-specific normalized evidence"]
     D --> E
 
-    E --> F["lane_signal_output"]
-    F --> G["trend_candidates"]
+    E --> F["lane_signal_output
+    lane-local signal judgments"]
+    F --> G["trend_candidates
+    merged and ranked opportunities"]
     B --> G
     D --> G
 
-    G --> H["sku_definitions"]
-    G --> I["sentiment_opportunities"]
-    G --> J["tiered_recommendations"]
+    G --> H["sku_definitions
+    concrete sourceable variants"]
+    G --> I["sentiment_opportunities
+    differentiation insights"]
+    G --> J["tiered_recommendations
+    scored decision tiers"]
     H --> J
     I --> J
     D --> J
@@ -109,6 +125,17 @@ flowchart LR
     L --> G
     L --> J
 ```
+
+## Artifact Glossary
+
+- `market_assortment_context`: structured view of what target retailers already carry, where assortment is broad or shallow, and which whitespace hypotheses seem credible.
+- `client_profile`: normalized client frame including platform, markets, categories, buyer logic, commercial constraints, and capability hints for the harness.
+- `lane_evidence_pack`: normalized evidence collected for a single lane such as TikTok, Amazon, or Xiaohongshu. This is still evidence, not a trend verdict.
+- `lane_signal_output`: that lane's interpretation of the evidence, including signal strength, trend status, and fit notes, without cross-lane merging.
+- `trend_candidates`: merged cross-lane opportunity set after synthesis, time-machine logic, and assortment-fit adjustment.
+- `sku_definitions`: concrete sourceable product formats or variants that make a trend actionable for sourcing or private label work.
+- `sentiment_opportunities`: structured complaints, likes, and wishlists that help shape differentiation where product design is still in play.
+- `tiered_recommendations`: auditable priority decisions such as Tier 1, Tier 2, Tier 3, or Skip based on trend, saturation, margin, and fit.
 
 ## Notes
 
