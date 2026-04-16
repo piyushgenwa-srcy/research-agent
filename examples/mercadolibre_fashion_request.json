@@ -1,0 +1,22 @@
+{
+  "run_id": "mercadolibre-fashion-2026-04-15",
+  "client_name": "Mercado Libre",
+  "platform": "mercadolibre",
+  "raw_brief": "Mercado Libre private label sourcing run focused on women's fashion. Priority category: dresses (vestidos mujer). Also cover: athleisure, casual wear, beachwear, lounge. Markets: MX primary, AR secondary. Use case: private label and white label. Model: Shein-style small-batch testing with fast iteration. Key requirement: translate social trend signals (TikTok + Instagram) into concrete SKU recommendations with assortment specs. For each trend: capture what users like AND what they complain about — turn complaints into product opportunities. Surface early demand signals (pre-transaction) from TikTok and Instagram that haven't yet saturated MercadoLibre listings. Competitor tracking: identify dominant sellers in each subcategory. SKU recommendations must be concrete: fabric, cut, color palette, target price point.",
+  "markets": ["MX", "AR"],
+  "ship_to": "Mexico City",
+  "categories": ["women fashion", "dresses", "athleisure", "casual wear", "beachwear", "lounge wear"],
+  "benchmark_sources": ["TikTok MX", "TikTok AR", "Amazon MX", "Instagram MX", "MercadoLibre MX", "MercadoLibre AR"],
+  "retailer_urls": [
+    "https://www.mercadolibre.com.mx/c/ropa-y-accesorios",
+    "https://www.mercadolibre.com.mx/c/ropa-mujer",
+    "https://www.mercadolibre.com.ar/c/indumentaria-y-calzado",
+    "https://www.mercadolibre.com.ar/c/ropa-mujer"
+  ],
+  "price_bracket": "mid-market",
+  "output_mode": "catalog",
+  "use_case": "private_label",
+  "moq": 50,
+  "min_products": 8,
+  "max_products": 15
+}

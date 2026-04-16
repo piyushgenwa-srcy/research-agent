@@ -1,163 +1,141 @@
 # Research Agent
 
-Structured docs for an agentic product-trend research system focused on LatAm ecommerce clients such as Rappi, MercadoLibre, and cross-border sourcing operators.
+An agentic product-trend research pipeline that turns social media signals into private-label sourcing recommendations. Given a brief, it autonomously collects evidence from TikTok, Instagram, Pinterest, MercadoLibre, and Amazon — then synthesises tiered SKU recommendations with specs, pricing, and differentiation angles.
 
-This repo is currently a workflow spec and operating model, not an application codebase. The primary assets are the architecture and harness docs, a canonical narrow skill library, broader reference capability docs, and a few working research artifacts in the repo root.
+## What it does
 
-## What This Is
+1. Reads a research brief → builds a `client_profile` and `lane_plan`
+2. Fetches evidence across configured lanes (TikTok, ML, Amazon, Instagram, Pinterest)
+3. Clusters TikTok posts into cohort segments via hashtag co-occurrence
+4. Computes trend velocity (30-day vs 90-day save-to-view ratio)
+5. Scores supply-demand gaps per cohort against marketplace listings
+6. Classifies comments with Haiku 4.5 (purchase intent, complaints, want-to-buy)
+7. Writes `trend_candidates` → `tiered_recommendations` → `final_catalog`
 
-The workflow is designed to answer a specific business question:
+Completed runs produce a structured JSON catalog ready for a buyer or a presentation layer.
 
-"Which products are emerging in US / China signals, still underpenetrated in LatAm, commercially viable to source or private-label, and worth packaging into a client-facing recommendation?"
+## Setup
 
-The repo separates that work into explicit reasoning capabilities so the process is auditable and can later be operationalized in an agentic harness.
+**Requirements:** Python 3.9+, pip
 
-## Architecture
+```bash
+git clone <repo>
+cd research-agent
+pip install -e .
+cp .env.example .env   # fill in your API keys
+```
 
-This repo should be read in four layers:
+**Check connector status:**
+```bash
+research-agent connector-status --repo-root .
+```
 
-1. **Architecture**  
-   What the system is: agent, harness, tools, validators, and working artifacts.
+## Running a research pipeline
 
-2. **Harness / orchestration**  
-   How the agent is routed, validated, and allowed to revisit artifacts.
+**1. Initialise a run from a JSON brief:**
+```bash
+research-agent init-run --input examples/mercadolibre_fashion_request.json --repo-root .
+```
+Creates `runs/<run-id>/` with `client_profile.json`, `lane_plan.json`, `raw_brief.md`.
 
-3. **Canonical skills**  
-   Narrow reusable skills for recurring subproblems and failure modes.
+**2. Run the full agentic pipeline:**
+```bash
+research-agent run-agent --run-id mercadolibre-fashion-2026-04-16 --repo-root .
+```
+The agent drives all data collection and synthesis autonomously. Writes intermediate artifacts to `runs/<run-id>/artifacts/` and prints a findings summary when done.
 
-4. **Reference workflows / broad bundles**  
-   Useful for onboarding and context, but not the ideal abstraction for a skill library.
+**3. Run individual lanes manually:**
+```bash
+research-agent fetch-tiktok-vertical --run-id <id> --keywords "vestido mujer,vestido casual,summer dress" --repo-root .
+research-agent fetch-mercadolibre-lane --run-id <id> --query "vestido mujer casual" --market MX --repo-root .
+research-agent fetch-instagram-lane   --run-id <id> --keyword "vestido verano mujer 2025" --repo-root .
+research-agent fetch-pinterest-lane   --run-id <id> --keyword "vestido midi elegante" --repo-root .
+research-agent fetch-amazon-lane      --run-id <id> --query "summer casual dress women" --repo-root .
+```
 
-The agent is allowed to skip, revisit, or combine skills based on the task. A reference workflow may still exist, but it should not be confused with the skill library.
+## Run request format
 
-## Canonical Skill Library
+See [`examples/mercadolibre_fashion_request.json`](./examples/mercadolibre_fashion_request.json) for a complete example. Key fields:
 
-The canonical narrow skill library now lives in [micro-skills](./micro-skills):
+```json
+{
+  "run_id": "my-run-2026-04-16",
+  "client_name": "Acme",
+  "platform": "mercadolibre",
+  "raw_brief": "...",
+  "markets": ["MX", "AR"],
+  "categories": ["dresses", "athleisure"],
+  "price_bracket": "mid-market",
+  "use_case": "private_label",
+  "moq": 50,
+  "min_products": 6,
+  "max_products": 12
+}
+```
 
-- `brief-to-client-frame`
-- `retailer-assortment-to-market-context`
-- `preserve-ambiguity-before-judgment`
-- `lane-evidence-pack-builder`
-- `lane-local-signal-judgment`
-- `cross-lane-synthesis-with-conflict-visibility`
-- `abstract-signal-to-concrete-spec`
-- `feedback-to-differentiation-opportunity`
-- `proxy-data-with-visible-confidence-penalty`
-- `evidence-to-tier-decision`
-- `assembly-without-rescoring`
+## Source code
 
-These are the closest thing in the repo to "real skills" in the narrow agentic sense.
+```
+src/research_agent/
+├── agent.py              # agentic loop (Claude Opus 4.6 + tool use)
+├── harness.py            # data-fetching orchestration
+├── cli.py                # CLI entrypoints
+├── tiktok_vertical.py    # two-pass TikTok collection + cohort clustering + velocity
+├── comment_classifier.py # Haiku 4.5 comment classification (falls back to regex)
+├── supply_gap.py         # demand × supply gap scorer
+├── extractors.py         # evidence pack builders for all lanes
+├── models.py             # typed artifact models
+├── config.py             # env loading + connector status
+├── artifact_io.py        # JSON read/write helpers
+├── validators.py         # artifact validation
+└── connectors/
+    ├── ensemble.py       # TikTok via Ensemble Data API
+    ├── oxylabs.py        # MercadoLibre + Amazon via Oxylabs
+    ├── serpapi.py        # Instagram + Pinterest via SerpAPI Google search
+    └── base.py           # shared HTTP helpers
+```
 
-## Reference Run
+## Connectors
 
-A common happy-path run still often looks like:
+| Connector | Provider | Used for | Required |
+|---|---|---|---|
+| Ensemble | [ensembledata.com](https://ensembledata.com) | TikTok keyword search, hashtag posts, post comments | Yes |
+| Oxylabs | [oxylabs.io](https://oxylabs.io) | MercadoLibre + Amazon scraping | Yes |
+| SerpAPI | [serpapi.com](https://serpapi.com) | Instagram + Pinterest via `site:` Google search | Yes |
+| Anthropic | [anthropic.com](https://anthropic.com) | Agent loop (Claude Opus 4.6) + comment classifier (Haiku 4.5) | Yes |
+| TMAPI | — | Marketplace data (stub, not yet wired) | No |
+| JungleScout | — | Amazon demand volume (stub, not yet wired) | No |
 
-1. build `client_profile`
-2. build `market_assortment_context` when retailer/category inputs are available
-3. gather `lane_evidence_pack` artifacts for relevant lanes
-4. interpret each lane into `lane_signal_output`
-5. synthesize into `trend_candidates`
-6. optionally create `sku_definitions`
-7. optionally create `sentiment_opportunities`
-8. convert evidence into `tiered_recommendations`
-9. package the final output
+Copy `.env.example` → `.env` and fill in keys for the four required connectors.
 
-That is a reference pattern, not an execution contract and not the definition of the skill system.
+## Artifacts produced per run
 
-## Skills Directory
+| File | Description |
+|---|---|
+| `client_profile.json` | Client frame derived from brief |
+| `lane_plan.json` | Which lanes to run and why |
+| `artifacts/tiktok_vertical_signal.json` | Full TikTok breadth + depth output with cohort clusters and velocity |
+| `artifacts/supply_gap_scores.json` | Per-cohort demand vs supply gap scores (Tier A/B/C) |
+| `artifacts/lane_evidence_pack_*.json` | Raw evidence packs per lane |
+| `artifacts/trend_candidates.json` | Synthesised candidates with tier and evidence |
+| `artifacts/tiered_recommendations.json` | Scored recommendations |
+| `artifacts/final_catalog.json` | Final structured catalog with full SKU specs |
 
-The core docs live here:
+## Agent tools
 
-- [architecture.md](./architecture.md)
-- [orchestration.md](./orchestration.md)
-- [skill-taxonomy.md](./skill-taxonomy.md)
-- [reference-workflow.md](./reference-workflow.md)
-- [micro-skills](./micro-skills)
-- [skills/00a_market_assortment_intake.md](./skills/00a_market_assortment_intake.md)
-- [skills/00_client_profile.md](./skills/00_client_profile.md)
-- [skills/01_data_extraction.md](./skills/01_data_extraction.md)
-- [skills/02_trend_discovery.md](./skills/02_trend_discovery.md)
-- [skills/03_trend_synthesis.md](./skills/03_trend_synthesis.md)
-- [skills/04_sku_mapping.md](./skills/04_sku_mapping.md)
-- [skills/05_sentiment_analysis.md](./skills/05_sentiment_analysis.md)
-- [skills/06_demand_tier_classification.md](./skills/06_demand_tier_classification.md)
-- [skills/07_catalog_assembly.md](./skills/07_catalog_assembly.md)
-- [skills/data_mapping.md](./skills/data_mapping.md)
+The agent loop has access to these tools:
 
-Read the docs in this order:
+- `list_artifacts` / `read_artifact` / `write_artifact` — run directory I/O
+- `fetch_tiktok_vertical` — two-pass TikTok collection (breadth + comment depth)
+- `fetch_mercadolibre_lane` — ML scraping via Oxylabs
+- `fetch_amazon_lane` — Amazon scraping via Oxylabs
+- `fetch_instagram_lane` — Instagram signal via SerpAPI
+- `fetch_pinterest_lane` — Pinterest signal via SerpAPI
+- `fetch_tiktok_lane` — single-keyword TikTok (lightweight, use vertical for deep runs)
+- `score_supply_gap` — cross-reference TikTok demand vs ML supply per cohort
 
-1. [architecture.md](./architecture.md)
-2. [orchestration.md](./orchestration.md)
-3. [skill-taxonomy.md](./skill-taxonomy.md)
-4. [micro-skills](./micro-skills)
+## Orchestration + skills
 
-The files in [skills](./skills) are now best read as broader domain reference docs or migration sources, not as the canonical narrow skill library.
+[`orchestration.md`](./orchestration.md) contains the source routing decision tree (6 stages: Surface → Segment → Validate → Supply check → Differentiation → Confidence scoring) and quick connector reference. The agent reads this at runtime.
 
-## Design Principles
-
-- Separate extraction from judgment. Data collection should behave like an analyst; trend classification should behave like a strategist.
-- Keep every artifact auditable. The agent should create explicit intermediate objects that can be inspected and validated.
-- Preserve ambiguity early. Resolve conflicts only when the workflow reaches the right reasoning stage.
-- Treat connector data, marketplace saturation, and margin as different signal types. They should not be conflated.
-- Optimize for operationalization. These docs are intended to become harness prompts, validators, schemas, and tool contracts.
-- Prefer narrow skills over stage-shaped docs. If a new concept solves a reusable subproblem, it belongs in the skill library, not in a pseudo-pipeline stage.
-
-## Source Lanes
-
-The workflow currently assumes four primary trend-discovery lanes:
-
-- `tiktok`
-- `instagram`
-- `amazon`
-- `xiaohongshu`
-
-Supporting commercial validation sources include:
-
-- Google Trends via SerpAPI
-- MercadoLibre listing counts via Oxylab
-- sourcing price inputs via TMAPI or fallback proxy logic
-
-See [skills/data_mapping.md](./skills/data_mapping.md) for the full source-to-skill map and known gaps.
-
-## Typical Client Modes
-
-The workflow branches depending on the client:
-
-- `Rappi` / quick-commerce sourcing  
-  Emphasis on fast-deliverable, impulse, operational, and sourcing-feasible products. When retailer URLs are supplied, start with `00a_market_assortment_intake` to ground recommendations in current shelf coverage.
-
-- `MercadoLibre` / private-label or white-label  
-  Emphasis on trend translatability, assortment logic, sentiment-driven product opportunity, and dashboard output.
-
-- `NocNoc`-style sourcing  
-  Emphasis on cross-border product opportunity and sourcing viability with fewer product-design steps.
-
-## Repo Contents
-
-Besides the skills folder, the repo currently contains working notes and example artifacts such as:
-
-- session context notes
-- raw research notes
-- CSV opportunity exports
-- product feedback references
-
-These are useful as examples, but the canonical system definition now lives in the architecture, harness, taxonomy, and `micro-skills` docs.
-
-## Suggested Next Steps
-
-If this is being shared with engineering or operations, the most useful follow-on docs would be:
-
-1. a strict JSON schema for each skill output
-2. a harness spec showing routing, branching, and retries
-3. a connector contract doc for Apify, Oxylab, SerpAPI, TMAPI, and related sources
-
-## Status
-
-Current state: workflow specification and prompt architecture.
-
-Not yet included:
-
-- production orchestrator code
-- validated schemas
-- automated connector wrappers in this repo
-- test fixtures for each skill stage
+Reusable reasoning skills live in [`micro-skills/`](./micro-skills/).

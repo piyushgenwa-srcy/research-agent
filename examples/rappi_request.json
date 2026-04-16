@@ -1,0 +1,21 @@
+{
+  "run_id": "rappi-framework-smoke",
+  "client_name": "Rappi",
+  "platform": "rappi",
+  "raw_brief": "Rappi recommendation run focused on quick-commerce beauty, operations, and high-margin add-on products for Mexico City. Benchmark Chinese quick-commerce and external trend signals, but ground recommendations in current Rappi assortment.",
+  "markets": ["MX"],
+  "ship_to": "Mexico City",
+  "categories": ["beauty", "electronics", "supplements"],
+  "benchmark_sources": ["美团闪购", "Taobao Flash", "TikTok US"],
+  "retailer_urls": [
+    "https://www.rappi.com.mx/tiendas/160195150-farmacias-guadalajara/dermocosmetica",
+    "https://www.rappi.com.mx/tiendas/1923221338-sally-beauty/accesorios-de-belleza",
+    "https://www.rappi.com.mx/tiendas/1930104812-natura-mt-enc/cuidado-facial"
+  ],
+  "price_bracket": "mid-market",
+  "output_mode": "catalog",
+  "use_case": "sourcing",
+  "moq": 50,
+  "min_products": 5,
+  "max_products": 10
+}

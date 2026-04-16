@@ -1,0 +1,22 @@
+{
+  "run_id": "mercadolibre-2026-04-14",
+  "client_name": "Mercado Libre",
+  "platform": "mercadolibre",
+  "raw_brief": "Mercado Libre private label sourcing run. Categories: home, fashion. Markets: MX primary, AR secondary, LATAM stretch. Source new products where consumer demand is visible but current assortment is shallow or undifferentiated. Use social and marketplace signals. Sentiment from existing listings should inform differentiation. Generic, sourceable formats only.",
+  "markets": ["MX", "AR", "BR", "CO", "CL"],
+  "ship_to": "Mexico City",
+  "categories": ["home", "fashion"],
+  "benchmark_sources": ["TikTok MX", "TikTok AR", "Amazon MX", "Pinterest"],
+  "retailer_urls": [
+    "https://www.mercadolibre.com.mx/c/hogar-y-muebles",
+    "https://www.mercadolibre.com.mx/c/ropa-y-accesorios",
+    "https://www.mercadolibre.com.ar/c/hogar-y-muebles",
+    "https://www.mercadolibre.com.ar/c/indumentaria-y-calzado"
+  ],
+  "price_bracket": "mid-market",
+  "output_mode": "catalog",
+  "use_case": "private_label",
+  "moq": 100,
+  "min_products": 5,
+  "max_products": 15
+}
