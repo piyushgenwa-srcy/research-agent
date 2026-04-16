@@ -2,6 +2,9 @@
 .env
 .env.local
 
+# Managed agent config (contains agent_id and environment_id — not secrets but org-specific)
+.managed_config.json
+
 # Run artifacts (API responses, generated catalogs)
 runs/
 

@@ -9,6 +9,8 @@ from .agent import run_agent
 from .config import Settings
 from .harness import Harness
 from .models import RunRequest
+from .managed.setup import create_agent, create_environment, load_config, save_config
+from .managed.session import run_session
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -70,6 +72,21 @@ def build_parser() -> argparse.ArgumentParser:
     run_agent_cmd.add_argument("--run-id", required=True, help="Run id under runs/ (must have raw_brief.md, client_profile.json, lane_plan.json)")
     run_agent_cmd.add_argument("--repo-root", default=".", help="Repo root path")
     run_agent_cmd.add_argument("--env-file", default=".env", help="Environment file path, relative to repo root unless absolute")
+
+    score_gap = sub.add_parser("score-supply-gap", help="Score supply-demand gaps per cohort cluster (requires tiktok-vertical + ML lane data)")
+    score_gap.add_argument("--run-id", required=True, help="Run id under runs/")
+    score_gap.add_argument("--repo-root", default=".", help="Repo root path")
+    score_gap.add_argument("--env-file", default=".env", help="Environment file path, relative to repo root unless absolute")
+
+    managed_setup = sub.add_parser("managed-setup", help="Create the managed agent and environment on Anthropic (run once)")
+    managed_setup.add_argument("--repo-root", default=".", help="Repo root path")
+    managed_setup.add_argument("--env-file", default=".env", help="Environment file path, relative to repo root unless absolute")
+    managed_setup.add_argument("--force", action="store_true", help="Overwrite existing .managed_config.json")
+
+    managed_run = sub.add_parser("managed-run", help="Run the research pipeline as a managed agent session")
+    managed_run.add_argument("--input", required=True, help="Path to run request JSON (same format as init-run)")
+    managed_run.add_argument("--repo-root", default=".", help="Repo root path")
+    managed_run.add_argument("--env-file", default=".env", help="Environment file path, relative to repo root unless absolute")
 
     return parser
 
@@ -170,6 +187,59 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "run-agent":
         summary = run_agent(args.run_id, settings, repo_root)
         print(summary)
+        return 0
+
+    if args.command == "score-supply-gap":
+        harness = Harness(settings=settings, repo_root=repo_root)
+        result = harness.score_supply_gap(run_id=args.run_id, runs_root=repo_root / "runs")
+        print(json.dumps(result, indent=2))
+        return 0
+
+    if args.command == "managed-setup":
+        import anthropic as _anthropic
+        if not settings.anthropic_api_key:
+            print("Error: ANTHROPIC_API_KEY is not configured.", file=sys.stderr)
+            return 1
+        cfg_path = repo_root / ".managed_config.json"
+        if cfg_path.exists() and not args.force:
+            print(f"Config already exists at {cfg_path}. Use --force to overwrite.")
+            existing = json.loads(cfg_path.read_text())
+            print(json.dumps(existing, indent=2))
+            return 0
+        client = _anthropic.Anthropic(api_key=settings.anthropic_api_key)
+        agent_id = create_agent(client, repo_root)
+        environment_id = create_environment(client)
+        save_config(repo_root, agent_id, environment_id)
+        return 0
+
+    if args.command == "managed-run":
+        import anthropic as _anthropic
+        if not settings.anthropic_api_key:
+            print("Error: ANTHROPIC_API_KEY is not configured.", file=sys.stderr)
+            return 1
+        cfg = load_config(repo_root)
+        input_path = Path(args.input).resolve()
+        brief_json = json.loads(input_path.read_text())
+        run_id = brief_json.get("run_id")
+        if not run_id:
+            print("Error: brief JSON must have a 'run_id' field.", file=sys.stderr)
+            return 1
+        env_vars = {
+            "ANTHROPIC_API_KEY": settings.anthropic_api_key or "",
+            "ENSEMBLE_API_KEY": settings.ensemble_api_key or "",
+            "OXYLAB_USERNAME": settings.oxylab_username or "",
+            "OXYLAB_PASSWORD": settings.oxylab_password or "",
+            "SERP_API_KEY": settings.serp_api_key or "",
+        }
+        client = _anthropic.Anthropic(api_key=settings.anthropic_api_key)
+        run_session(
+            client=client,
+            agent_id=cfg["agent_id"],
+            environment_id=cfg["environment_id"],
+            run_id=run_id,
+            brief_json=brief_json,
+            env_vars=env_vars,
+        )
         return 0
 
     parser.print_help(sys.stderr)
